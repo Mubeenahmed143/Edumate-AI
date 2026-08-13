@@ -3,6 +3,7 @@ const cors = require("cors");
 require("dotenv").config();
 
 const chatRoutes = require("./routes/chatRoutes");
+const notesRoutes = require("./routes/notesRoutes");
 
 const app = express();
 
@@ -14,6 +15,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api", chatRoutes);
+app.use("/api", notesRoutes);
 
 // Test route
 app.get("/", (req, res) => {
