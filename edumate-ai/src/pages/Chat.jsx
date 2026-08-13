@@ -35,34 +35,58 @@ const suggestions = [
 
 function Chat() {
   const [messages, setMessages] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSend = (text) => {
-    const newMessage = {
+  const handleSend = async (text) => {
+    if (!text || !text.trim() || isLoading) return;
+
+    const userMessage = {
       id: Date.now(),
       role: "user",
       content: text,
     };
 
-    setMessages((previous) => [
-      ...previous,
-      newMessage,
-    ]);
+    setMessages((previous) => [...previous, userMessage]);
+    setIsLoading(true);
 
-    // Temporary AI response.
-    // Gemini API hum next phase me connect karenge.
-    setTimeout(() => {
+    try {
+      const response = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: text,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || "AI response failed");
+      }
+
       const aiMessage = {
         id: Date.now() + 1,
         role: "ai",
-        content:
-          "Great question! I'm ready to help you with that. Gemini AI will be connected in the next step.",
+        content: data.reply,
       };
 
-      setMessages((previous) => [
-        ...previous,
-        aiMessage,
-      ]);
-    }, 700);
+      setMessages((previous) => [...previous, aiMessage]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: "ai",
+        content:
+          "Sorry, I couldn't connect to EduMate AI right now. Please make sure the AI server is running and try again.",
+      };
+
+      setMessages((previous) => [...previous, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSuggestion = (text) => {
@@ -124,7 +148,8 @@ function Chat() {
                     onClick={() =>
                       handleSuggestion(suggestion.text)
                     }
-                    className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
+                    disabled={isLoading}
+                    className="group rounded-2xl border border-slate-200 bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-blue-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-900 dark:hover:border-slate-700"
                   >
                     <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
                       <Icon size={18} />
@@ -144,6 +169,27 @@ function Chat() {
           </div>
         ) : (
           <ChatBox messages={messages} />
+        )}
+
+        {/* Loading Indicator */}
+        {isLoading && (
+          <div className="mt-3 flex items-center gap-2 px-3">
+            <div className="flex gap-1">
+              <span className="h-2 w-2 animate-bounce rounded-full bg-blue-500"></span>
+              <span
+                className="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+                style={{ animationDelay: "150ms" }}
+              ></span>
+              <span
+                className="h-2 w-2 animate-bounce rounded-full bg-blue-500"
+                style={{ animationDelay: "300ms" }}
+              ></span>
+            </div>
+
+            <span className="text-xs text-slate-500">
+              EduMate AI is thinking...
+            </span>
+          </div>
         )}
 
         {/* Input */}
