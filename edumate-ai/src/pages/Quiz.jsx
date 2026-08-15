@@ -5,70 +5,72 @@ import {
   FiCheckCircle,
   FiArrowRight,
   FiRotateCcw,
+  FiLoader,
 } from "react-icons/fi";
-
-const demoQuestions = [
-  {
-    question: "Which language is primarily used to structure web pages?",
-    options: ["CSS", "HTML", "Python", "SQL"],
-    answer: "HTML",
-  },
-  {
-    question: "Which technology is used to style web pages?",
-    options: ["HTML", "CSS", "MongoDB", "Node.js"],
-    answer: "CSS",
-  },
-  {
-    question: "Which of the following is a JavaScript library?",
-    options: ["React", "MySQL", "Apache", "PHP"],
-    answer: "React",
-  },
-  {
-    question: "Which command is commonly used to install npm packages?",
-    options: [
-      "npm install",
-      "node start",
-      "git package",
-      "npm create-package",
-    ],
-    answer: "npm install",
-  },
-  {
-    question: "What does API stand for?",
-    options: [
-      "Application Programming Interface",
-      "Advanced Program Internet",
-      "Application Process Integration",
-      "Automated Programming Input",
-    ],
-    answer: "Application Programming Interface",
-  },
-];
 
 function Quiz() {
   const [topic, setTopic] = useState("");
   const [questionCount, setQuestionCount] = useState("5");
   const [difficulty, setDifficulty] = useState("Medium");
 
+  const [questions, setQuestions] = useState([]);
   const [quizStarted, setQuizStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [answers, setAnswers] = useState([]);
   const [finished, setFinished] = useState(false);
 
-  const questions = demoQuestions.slice(
-    0,
-    Number(questionCount)
-  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const startQuiz = () => {
-    if (!topic.trim()) return;
+  // Generate REAL AI Quiz
+  const startQuiz = async () => {
+    if (!topic.trim() || isLoading) return;
 
-    setQuizStarted(true);
-    setCurrentQuestion(0);
-    setSelectedAnswer("");
-    setAnswers([]);
-    setFinished(false);
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("http://localhost:5000/api/quiz", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          topic: topic.trim(),
+          questionCount: Number(questionCount),
+          difficulty,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.message || "AI quiz could not be generated."
+        );
+      }
+
+      if (!data.questions || data.questions.length === 0) {
+        throw new Error("No questions were generated.");
+      }
+
+      setQuestions(data.questions);
+      setQuizStarted(true);
+      setCurrentQuestion(0);
+      setSelectedAnswer("");
+      setAnswers([]);
+      setFinished(false);
+    } catch (err) {
+      console.error("Quiz Error:", err);
+
+      setError(
+        err.message ||
+          "Something went wrong while generating the quiz."
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAnswer = (answer) => {
@@ -99,6 +101,15 @@ function Quiz() {
     setSelectedAnswer("");
     setAnswers([]);
     setFinished(false);
+    setQuestions([]);
+    setError("");
+  };
+
+  const tryAgain = () => {
+    setCurrentQuestion(0);
+    setSelectedAnswer("");
+    setAnswers([]);
+    setFinished(false);
   };
 
   const score = answers.filter(
@@ -111,7 +122,7 @@ function Quiz() {
   if (!quizStarted) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
-        
+
         {/* Header */}
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
@@ -130,9 +141,9 @@ function Quiz() {
 
         {/* Setup Card */}
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-          
+
           <div className="grid gap-5 sm:grid-cols-2">
-            
+
             {/* Topic */}
             <div className="sm:col-span-2">
               <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
@@ -142,9 +153,7 @@ function Quiz() {
               <input
                 type="text"
                 value={topic}
-                onChange={(e) =>
-                  setTopic(e.target.value)
-                }
+                onChange={(e) => setTopic(e.target.value)}
                 placeholder="e.g. JavaScript, DBMS, OOP, Mathematics..."
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
               />
@@ -189,14 +198,33 @@ function Quiz() {
             </div>
           </div>
 
+          {/* Error */}
+          {error && (
+            <div className="mt-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
           {/* Generate */}
           <button
             onClick={startQuiz}
-            disabled={!topic.trim()}
+            disabled={!topic.trim() || isLoading}
             className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-blue-600 px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 transition hover:from-emerald-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
           >
-            <FiStar size={18} />
-            Generate AI Quiz
+            {isLoading ? (
+              <>
+                <FiLoader
+                  className="animate-spin"
+                  size={18}
+                />
+                Generating AI Quiz...
+              </>
+            ) : (
+              <>
+                <FiStar size={18} />
+                Generate AI Quiz
+              </>
+            )}
           </button>
 
           <p className="mt-3 text-center text-[11px] text-slate-400">
@@ -207,35 +235,52 @@ function Quiz() {
 
         {/* Features */}
         <div className="grid gap-3 sm:grid-cols-3">
+
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900">
-            <FiStar className="mx-auto text-blue-600" size={20} />
+            <FiStar
+              className="mx-auto text-blue-600"
+              size={20}
+            />
+
             <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-white">
               AI Generated
             </p>
+
             <p className="mt-1 text-xs text-slate-500">
               Smart questions
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900">
-            <FiCheckCircle className="mx-auto text-emerald-600" size={20} />
+            <FiCheckCircle
+              className="mx-auto text-emerald-600"
+              size={20}
+            />
+
             <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-white">
               Instant Score
             </p>
+
             <p className="mt-1 text-xs text-slate-500">
               Know your result
             </p>
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 text-center dark:border-slate-800 dark:bg-slate-900">
-            <FiRotateCcw className="mx-auto text-violet-600" size={20} />
+            <FiRotateCcw
+              className="mx-auto text-violet-600"
+              size={20}
+            />
+
             <p className="mt-2 text-sm font-semibold text-slate-800 dark:text-white">
               Practice Again
             </p>
+
             <p className="mt-1 text-xs text-slate-500">
               Improve your score
             </p>
           </div>
+
         </div>
       </div>
     );
@@ -250,8 +295,9 @@ function Quiz() {
 
     return (
       <div className="mx-auto max-w-2xl">
+
         <div className="rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          
+
           <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400">
             <FiCheckCircle size={38} />
           </div>
@@ -265,6 +311,7 @@ function Quiz() {
           </h1>
 
           <div className="mt-8 rounded-2xl bg-slate-50 p-6 dark:bg-slate-800">
+
             <p className="text-sm text-slate-500">
               Your Score
             </p>
@@ -279,6 +326,7 @@ function Quiz() {
           </div>
 
           <div className="mt-6 flex gap-3">
+
             <button
               onClick={restartQuiz}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
@@ -288,17 +336,13 @@ function Quiz() {
             </button>
 
             <button
-              onClick={() => {
-                setFinished(false);
-                setCurrentQuestion(0);
-                setSelectedAnswer("");
-                setAnswers([]);
-              }}
+              onClick={tryAgain}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Try Again
               <FiArrowRight size={17} />
             </button>
+
           </div>
         </div>
       </div>
@@ -309,11 +353,16 @@ function Quiz() {
 
   const question = questions[currentQuestion];
 
+  if (!question) {
+    return null;
+  }
+
   return (
     <div className="mx-auto max-w-3xl">
-      
+
       {/* Header */}
       <div className="mb-5 flex items-center justify-between">
+
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             AI Quiz
@@ -331,6 +380,7 @@ function Quiz() {
 
       {/* Progress */}
       <div className="mb-5 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+
         <div
           className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 transition-all"
           style={{
@@ -341,18 +391,21 @@ function Quiz() {
             }%`,
           }}
         ></div>
+
       </div>
 
       {/* Question */}
       <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:p-8">
-        
+
         <p className="text-lg font-semibold leading-7 text-slate-900 dark:text-white">
           {question.question}
         </p>
 
         {/* Options */}
         <div className="mt-6 space-y-3">
+
           {question.options.map((option, index) => {
+
             const letters = ["A", "B", "C", "D"];
 
             const selected =
@@ -370,6 +423,7 @@ function Quiz() {
                     : "border-slate-200 hover:border-blue-300 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                 }`}
               >
+
                 <span
                   className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-bold ${
                     selected
@@ -383,9 +437,11 @@ function Quiz() {
                 <span className="text-sm font-medium text-slate-700 dark:text-slate-200">
                   {option}
                 </span>
+
               </button>
             );
           })}
+
         </div>
 
         {/* Next */}
@@ -394,12 +450,15 @@ function Quiz() {
           disabled={!selectedAnswer}
           className="mt-7 flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
         >
+
           {currentQuestion === questions.length - 1
             ? "Finish Quiz"
             : "Next Question"}
 
           <FiArrowRight size={17} />
+
         </button>
+
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ require("dotenv").config();
 
 const chatRoutes = require("./routes/chatRoutes");
 const notesRoutes = require("./routes/notesRoutes");
+const quizRoutes = require("./routes/quizRoutes");
 
 const app = express();
 
@@ -16,6 +17,7 @@ app.use(express.json());
 // Routes
 app.use("/api", chatRoutes);
 app.use("/api", notesRoutes);
+app.use("/api", quizRoutes);
 
 // Test route
 app.get("/", (req, res) => {
