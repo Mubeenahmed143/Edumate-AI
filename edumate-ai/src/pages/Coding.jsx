@@ -6,6 +6,7 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiBookOpen,
+  FiLoader,
 } from "react-icons/fi";
 
 function Coding() {
@@ -23,26 +24,72 @@ console.log(calculateSum(5));`
 
   const [generated, setGenerated] = useState(false);
 
+  const [loading, setLoading] = useState(false);
+
+  const [result, setResult] = useState("");
+
   const [copied, setCopied] = useState(false);
 
-  const handleAnalyze = () => {
+  // ---------------- ANALYZE CODE ----------------
+
+  const handleAnalyze = async () => {
     if (!code.trim()) {
       alert("Please enter some code first.");
       return;
     }
 
-    setGenerated(true);
+    setLoading(true);
+    setGenerated(false);
+    setResult("");
+
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/coding",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            language,
+            code,
+            problem,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data.message || "Something went wrong."
+        );
+      }
+
+      setResult(data.result);
+      setGenerated(true);
+    } catch (error) {
+      console.error("Coding Assistant Error:", error);
+
+      setResult(
+        `Unable to analyze your code.
+
+${error.message}
+
+Please make sure the EduMate backend server is running.`
+      );
+
+      setGenerated(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const copyCode = async () => {
-    try {
-      await navigator.clipboard.writeText(
-`function calculateSum(a, b) {
-  return a + b;
-}
+  // ---------------- COPY RESULT ----------------
 
-console.log(calculateSum(5, 10));`
-      );
+  const copyResult = async () => {
+    try {
+      await navigator.clipboard.writeText(result);
 
       setCopied(true);
 
@@ -50,17 +97,17 @@ console.log(calculateSum(5, 10));`
         setCopied(false);
       }, 2000);
     } catch (error) {
-      console.log(error);
+      console.error("Copy error:", error);
     }
   };
 
   return (
     <div className="space-y-6">
-      
+
       {/* Header */}
       <div>
         <div className="flex items-center gap-3">
-          
+
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-cyan-100 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
             <FiCode size={22} />
           </div>
@@ -80,13 +127,16 @@ console.log(calculateSum(5, 10));`
 
       {/* Main Layout */}
       <div className="grid gap-6 lg:grid-cols-2">
-        
+
+        {/* ================================================= */}
         {/* LEFT SIDE */}
+        {/* ================================================= */}
+
         <div className="space-y-5">
 
           {/* Language */}
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            
+
             <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
               Programming Language
             </label>
@@ -109,9 +159,9 @@ console.log(calculateSum(5, 10));`
 
           {/* Code Editor */}
           <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-            
+
             <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
-              
+
               <div className="flex items-center gap-2">
                 <FiCode className="text-cyan-600" size={17} />
 
@@ -137,7 +187,7 @@ console.log(calculateSum(5, 10));`
 
           {/* Problem */}
           <div className="rounded-3xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-            
+
             <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-200">
               What problem are you facing?
             </label>
@@ -150,23 +200,41 @@ console.log(calculateSum(5, 10));`
               className="w-full resize-none rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-cyan-500 focus:ring-4 focus:ring-cyan-500/10 dark:border-slate-700 dark:bg-slate-800 dark:text-white"
             />
 
+            {/* Analyze Button */}
             <button
               onClick={handleAnalyze}
-              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-700 hover:to-blue-700"
+              disabled={loading}
+              className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3.5 text-sm font-semibold text-white shadow-lg shadow-cyan-500/20 transition hover:from-cyan-700 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <FiPlay size={17} />
-              Analyze Code with AI
+
+              {loading ? (
+                <>
+                  <FiLoader className="animate-spin" size={17} />
+                  Analyzing Code...
+                </>
+              ) : (
+                <>
+                  <FiPlay size={17} />
+                  Analyze Code with AI
+                </>
+              )}
+
             </button>
 
           </div>
+
         </div>
 
+        {/* ================================================= */}
         {/* RIGHT SIDE */}
+        {/* ================================================= */}
+
         <div className="min-h-[650px] rounded-3xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
-          
-          {!generated ? (
+
+          {/* EMPTY STATE */}
+          {!generated && !loading && (
             <div className="flex min-h-[650px] flex-col items-center justify-center px-6 text-center">
-              
+
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
                 <FiCode size={30} />
               </div>
@@ -181,9 +249,13 @@ console.log(calculateSum(5, 10));`
               </p>
 
               <div className="mt-6 grid w-full max-w-md gap-3 sm:grid-cols-2">
-                
+
                 <div className="rounded-xl bg-slate-50 p-3 text-left dark:bg-slate-800">
-                  <FiAlertCircle className="text-orange-500" size={18} />
+
+                  <FiAlertCircle
+                    className="text-orange-500"
+                    size={18}
+                  />
 
                   <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                     Find Errors
@@ -192,10 +264,15 @@ console.log(calculateSum(5, 10));`
                   <p className="mt-1 text-[11px] text-slate-500">
                     Identify bugs and mistakes.
                   </p>
+
                 </div>
 
                 <div className="rounded-xl bg-slate-50 p-3 text-left dark:bg-slate-800">
-                  <FiBookOpen className="text-blue-500" size={18} />
+
+                  <FiBookOpen
+                    className="text-blue-500"
+                    size={18}
+                  />
 
                   <p className="mt-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
                     Explain Code
@@ -204,50 +281,80 @@ console.log(calculateSum(5, 10));`
                   <p className="mt-1 text-[11px] text-slate-500">
                     Understand code easily.
                   </p>
+
                 </div>
 
               </div>
+
             </div>
-          ) : (
+          )}
+
+          {/* LOADING */}
+          {loading && (
+            <div className="flex min-h-[650px] flex-col items-center justify-center px-6 text-center">
+
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-cyan-50 text-cyan-600 dark:bg-cyan-500/10 dark:text-cyan-400">
+                <FiLoader
+                  className="animate-spin"
+                  size={30}
+                />
+              </div>
+
+              <h2 className="mt-5 text-lg font-semibold text-slate-800 dark:text-white">
+                EduMate AI is analyzing your code...
+              </h2>
+
+              <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                Please wait while AI checks your code and prepares an
+                explanation and solution.
+              </p>
+
+            </div>
+          )}
+
+          {/* RESULT */}
+          {generated && !loading && (
             <div className="p-5 sm:p-6">
 
               {/* Result Header */}
-              <div className="border-b border-slate-200 pb-5 dark:border-slate-800">
-                
-                <p className="text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
-                  AI Code Analysis
-                </p>
+              <div className="flex items-center justify-between border-b border-slate-200 pb-5 dark:border-slate-800">
 
-                <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
-                  Issue Found
-                </h2>
+                <div>
 
-              </div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-cyan-600 dark:text-cyan-400">
+                    AI Code Analysis
+                  </p>
 
-              {/* Error */}
-              <div className="mt-5 rounded-2xl border border-orange-200 bg-orange-50 p-4 dark:border-orange-500/20 dark:bg-orange-500/10">
-                
-                <div className="flex items-center gap-2">
-                  <FiAlertCircle
-                    className="text-orange-600 dark:text-orange-400"
-                    size={18}
-                  />
+                  <h2 className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
+                    Analysis Result
+                  </h2>
 
-                  <h3 className="font-semibold text-orange-700 dark:text-orange-400">
-                    Problem
-                  </h3>
                 </div>
 
-                <p className="mt-2 text-sm leading-6 text-orange-700/80 dark:text-orange-300/80">
-                  The function requires two parameters, but only one
-                  parameter was provided when calling the function.
-                </p>
+                <button
+                  onClick={copyResult}
+                  className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                >
+
+                  {copied ? (
+                    <>
+                      <FiCheckCircle size={14} />
+                      Copied
+                    </>
+                  ) : (
+                    <>
+                      <FiCopy size={14} />
+                      Copy
+                    </>
+                  )}
+
+                </button>
 
               </div>
 
-              {/* Explanation */}
+              {/* AI Result */}
               <div className="mt-5">
-                
+
                 <div className="flex items-center gap-2">
                   <FiBookOpen
                     className="text-blue-600"
@@ -255,81 +362,30 @@ console.log(calculateSum(5, 10));`
                   />
 
                   <h3 className="font-semibold text-slate-800 dark:text-white">
-                    Explanation
+                    AI Explanation
                   </h3>
                 </div>
 
-                <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                  Your function accepts two values:
-                  <span className="font-semibold text-slate-800 dark:text-white">
-                    {" "}a
-                  </span>
-                  {" "}and
-                  <span className="font-semibold text-slate-800 dark:text-white">
-                    {" "}b
-                  </span>.
-                  However, when calling the function, only one value is
-                  provided. JavaScript therefore assigns undefined to the
-                  second parameter.
-                </p>
-
-              </div>
-
-              {/* Fixed Code */}
-              <div className="mt-6">
-                
-                <div className="mb-2 flex items-center justify-between">
-                  
-                  <div className="flex items-center gap-2">
-                    <FiCheckCircle
-                      className="text-emerald-600"
-                      size={18}
-                    />
-
-                    <h3 className="font-semibold text-slate-800 dark:text-white">
-                      Suggested Solution
-                    </h3>
-                  </div>
-
-                  <button
-                    onClick={copyCode}
-                    className="flex items-center gap-1.5 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
-                  >
-                    {copied ? (
-                      <>
-                        <FiCheckCircle size={14} />
-                        Copied
-                      </>
-                    ) : (
-                      <>
-                        <FiCopy size={14} />
-                        Copy
-                      </>
-                    )}
-                  </button>
-
+                <div className="mt-3 whitespace-pre-wrap rounded-2xl bg-slate-50 p-5 text-sm leading-7 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  {result}
                 </div>
 
-                <pre className="overflow-x-auto rounded-2xl bg-slate-950 p-5 font-mono text-sm leading-6 text-slate-200">
-{`function calculateSum(a, b) {
-  return a + b;
-}
-
-console.log(calculateSum(5, 10));`}
-                </pre>
-
               </div>
 
-              {/* AI Status */}
+              {/* Status */}
               <div className="mt-5 flex items-center gap-2 rounded-xl bg-emerald-50 px-4 py-3 text-xs text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
+
                 <FiCheckCircle size={16} />
+
                 Code analysis completed successfully.
+
               </div>
 
             </div>
           )}
 
         </div>
+
       </div>
     </div>
   );
